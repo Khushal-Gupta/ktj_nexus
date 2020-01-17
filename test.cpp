@@ -27,7 +27,8 @@ int main() {
 	waitKey(0);
 }
 */
-
+#include <chrono> 
+using namespace std::chrono; 
 
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/core/core.hpp"
@@ -84,33 +85,37 @@ pnt poly_coor(Mat img) {
 
 
 */ 
-int main(int , char **)
+int main(int argc, char **argv)
 {
 	VideoCapture cap(0);
 	if(!cap.isOpened())
 		return -1;
 
 	int i,j,hmin=55,smin=0,vmin=0,hmax=65,smax=255,vmax=255;
-	namedWindow("original",WINDOW_NORMAL);
-	namedWindow("hsv",WINDOW_NORMAL);
+	// namedWindow("original",WINDOW_NORMAL);
+	// namedWindow("hsv",WINDOW_NORMAL);
 	//namedWindow("after_canny",WINDOW_NORMAL);
 	// namedWindow("after_canny",WINDOW_NORMAL);
-	namedWindow("final_output",WINDOW_NORMAL);
+	// namedWindow("final_output",WINDOW_NORMAL);
 
 
-	createTrackbar("vmin","hsv",&vmin,255);
-	createTrackbar("vmax","hsv",&vmax,255);
-	createTrackbar("hmin","hsv",&hmin,180);
-	createTrackbar("hmax","hsv",&hmax,180);
-	createTrackbar("smin","hsv",&smin,255);
-	createTrackbar("smax","hsv",&smax,255);
+	// createTrackbar("vmin","hsv",&vmin,255);
+	// createTrackbar("vmax","hsv",&vmax,255);
+	// createTrackbar("hmin","hsv",&hmin,180);
+	// createTrackbar("hmax","hsv",&hmax,180);
+	// createTrackbar("smin","hsv",&smin,255);
+	// createTrackbar("smax","hsv",&smax,255);
 
+	auto start = high_resolution_clock::now(); 
 
-	for(int u=0 ; u<1; u++)
+	for(int u=0 ; u<30; u++)
 	{
+		
+		
+
 		Mat img;
 		cap>>img;
-		img = imread("B1.jpg",1);
+		img = imread(argv[1],1);
 		Mat a = img.clone();
 
 		int bmax = 10, gmax = 10, rmax = 10;
@@ -144,18 +149,22 @@ int main(int , char **)
 		cvtColor(imgPoly, imgPoly, CV_BGR2GRAY);
 		
 
+		// for(int i=0; i < 1; i++) {                                           //  Thresholding first time
+		// 	GaussianBlur(imgPoly, imgPoly, Size( 9, 9 ), 9, 9 );
+		// 	threshold(imgPoly, imgPoly, 50, 255, THRESH_BINARY);
+		// }
+
+		
 		for(int i=0; i < 1; i++) {                                           //  Thresholding first time
-			GaussianBlur(imgPoly, imgPoly, Size( 9, 9 ), 9, 9 );
+			GaussianBlur(imgPoly, imgPoly, Size( 5, 5 ), 3, 3 );
 			threshold(imgPoly, imgPoly, 50, 255, THRESH_BINARY);
 		}
 
-		
-		
 
-		for(int i=0; i<5; i++) {											// Thresholding second time
-			GaussianBlur(imgPoly, imgPoly, Size( 7, 7 ), 5, 5 );
-			threshold(imgPoly, imgPoly, 120, 255, THRESH_BINARY);
-		}
+		// for(int i=0; i<5; i++) {											// Thresholding second time
+		// 	GaussianBlur(imgPoly, imgPoly, Size( 7, 7 ), 5, 5 );
+		// 	threshold(imgPoly, imgPoly, 120, 255, THRESH_BINARY);
+		// }
 		
 
 
@@ -173,14 +182,11 @@ int main(int , char **)
 
 		inRange(imgHSV, Scalar(hmin, smin, vmin), Scalar(hmax, smax, vmax), imgThresholded);      // detects green colour
 
-
-		
-
-		for(int i=0; i<3; i++) {
+		for(int i=0; i<1; i++) {
   			erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
   			erode(imgPoly, imgPoly, getStructuringElement(MORPH_RECT, Size(3, 3)));
 		}
-  		for(int i=0; i<5; i++) {
+  		for(int i=0; i<1; i++) {
   			dilate(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5))); 
   			dilate(imgPoly, imgPoly, getStructuringElement(MORPH_RECT, Size(3, 3)));
   		}
@@ -189,8 +195,8 @@ int main(int , char **)
 
   		// Applying Gaussian Blur and Thresholding to image
   		for(int i = 0 ;i < 1; i++) {
-  			erode(imgPoly, imgPoly, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
-  			GaussianBlur( imgPoly, imgPoly, Size( 7, 7 ), 3, 3 );
+  			erode(imgPoly, imgPoly, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  			GaussianBlur( imgPoly, imgPoly, Size( 5, 5 ), 3, 3 );
 			threshold(imgPoly, imgPoly, 230, 255, THRESH_BINARY);
   		}
 
@@ -199,41 +205,35 @@ int main(int , char **)
   		// Turning boundary pixels to black
 		
   		for(int i=0; i<img.cols; i++) {
-  			for(int k = 0; k < 8; k++) {
+  			for(int k = 0; k < 5; k++) {
   			imgThresholded.at<uchar>(k, i) = 0;
   			}
   		}
   		for(int i=0; i<img.cols; i++) {
-  			for(int k = 1; k < 8 ;k++){
+  			for(int k = 1; k < 5 ;k++){
   				imgThresholded.at<uchar>(img.rows-k, i) = 0;
   			}
   		}
   		for(int i=0; i<img.rows; i++) {
-  			for(int k = 0 ;k <8; k++ ){
+  			for(int k = 0 ;k <5; k++ ){
   				imgThresholded.at<uchar>(i, k) = 0;
   			}
 		}
   		for(int i=0; i<img.rows; i++) {
-  			for(int k = 1; k < 8 ;k++) {
+  			for(int k = 1; k < 5 ;k++) {
   				imgThresholded.at<uchar>(i, img.cols-k) = 0;
   			}
   		}
   		for(int i = 0 ;i < 1; i++) {
-  			erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
-  			GaussianBlur( imgThresholded, imgThresholded, Size( 7, 7 ), 3, 3 );
+  			erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  			GaussianBlur( imgThresholded, imgThresholded, Size( 5, 5 ), 3, 3 );
 			threshold(imgThresholded, imgThresholded, 230, 255, THRESH_BINARY);
   		}
 
-  		
-
-  		
-
-  		
-
 		Mat d = imgThresholded.clone();
 
-		namedWindow("d",WINDOW_NORMAL);
-		imshow("d", imgThresholded);
+		// namedWindow("d",WINDOW_NORMAL);
+		// imshow("d", imgThresholded);
 		//split(a, d);
 
 		
@@ -278,54 +278,54 @@ int main(int , char **)
 		
 
 
-		cout<<"Area Poly Big = "<<areaPoly<<endl;
+		//cout<<"Area Poly Big = "<<areaPoly<<endl;
+
+
 		// Drawing largest contour for polygon
 		vector <vector<Point>> contoursPolyBig;
 		contoursPolyBig.push_back(contoursPoly[i_poly]);
 
-		cout<<"contoursPolyBig.size() = "<<contoursPolyBig.size()<<endl;
+		// cout<<"contoursPolyBig.size() = "<<contoursPolyBig.size()<<endl;
 
-		drawContours(imgPoly, contoursPolyBig, -1, Scalar(232,112,114), 2, 8 );
+		// drawContours(imgPoly, contoursPolyBig, -1, Scalar(232,112,114), 2, 8 );
 
-		namedWindow("imgPoly", WINDOW_NORMAL);
-		imshow("imgPoly", imgPoly);
+		// namedWindow("imgPoly", WINDOW_NORMAL);
+		// imshow("imgPoly", imgPoly);
 
 		vector<Point> approx;
 		approxPolyDP(Mat(contoursPoly[i_poly]), approx, arcLength(Mat(contoursPoly[i_poly]), true) * 0.01, true);
-		cout<<"approx.size() = "<<approx.size()<<endl;
+		//cout<<"approx.size() = "<<approx.size()<<endl;
 
 		//cout<<"contour size = "<<contours.size()<<endl;
-		imshow("hsv", imgThresholded);
-  		waitKey(1);
+		// imshow("hsv", imgThresholded);
+  // 		waitKey(1);
 
 		//Drawing Contours for circle if circle found i.e contours size greater than zero
 
   		if(contours.size() > 0) {
-			vector <vector<Point>> contourI;
-			contourI.push_back(contours[0]);
-			double AA = contourArea(contourI[0]);
-			cout<<" area contour ka = "<<AA<<endl;
+			// vector <vector<Point>> contourI;
+			// contourI.push_back(contours[0]);
+			// double AA = contourArea(contourI[0]);
+			// cout<<" area contour ka = "<<AA<<endl;
 
 
 
-			Mat f(d.rows, d.cols, CV_8UC3, Scalar(0,0,0));
-			drawContours(f, contours, -1, Scalar(232,112,114), 2, 8 );
+			// Mat f(d.rows, d.cols, CV_8UC3, Scalar(0,0,0));
+			// drawContours(f, contours, -1, Scalar(232,112,114), 2, 8 );
 
 			
-
-			//imshow("WebCam",img);
-			imshow("final_output",f);
+			//imshow("final_output",f);
 
 
 			
 			float Area = (img.rows*img.cols)/1200;
-			cout<<"Area = "<<Area<<endl;
+			//cout<<"Area = "<<Area<<endl;
 
 			//cout<<"X_coor = "<<X_coor<<" Y_coor = "<<Y_coor<<endl;
 
 			// Removing element having area less than Area;
 			for(auto i=contours.begin(); i!= contours.end(); i++) {
-				cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
+				//cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
 				if(contourArea(*i) < Area) {
 					contours.erase(i);
 				}
@@ -347,12 +347,12 @@ int main(int , char **)
 
 		X_coor = 0; Y_coor = 0; 
 		int x_temp = 0, y_temp = 0;
-		cout<<"contours.size() = "<<contours.size()<<endl;
+		//cout<<"contours.size() = "<<contours.size()<<endl;
 		for(int i=0; i< contours.size(); i++) {
 			Point2f p(mu[i].m01 / mu[i].m00, mu[i].m10 / mu[i].m00 );
 			x_temp = p.x;
 			y_temp = p.y;
-			cout<<"x_temp = "<<x_temp<<" y_temp = "<<y_temp<<endl;
+			//cout<<"x_temp = "<<x_temp<<" y_temp = "<<y_temp<<endl;
 			if(x_temp > 9*(float)img.rows/10 )
 				continue;
 			if(x_temp > X_coor) {
@@ -361,13 +361,13 @@ int main(int , char **)
 			}
 		}
 
-		cout<<"x_coor = "<<X_coor<<" y_coor = "<<Y_coor<<endl;
+		//cout<<"x_coor = "<<X_coor<<" y_coor = "<<Y_coor<<endl;
 		int vert_centre_strip = img.cols/6;
 		// Condition means next obstacle is polygon
 
-		cout<<"x_poly = "<<x_poly<<" y_poly = "<<y_poly<<endl;
+		//cout<<"x_poly = "<<x_poly<<" y_poly = "<<y_poly<<endl;
 
-		cout<<"9*(img.rows/10) = "<<9*(img.rows/10)<<endl;
+		//cout<<"9*(img.rows/10) = "<<9*(img.rows/10)<<endl;
 
 		if(contours.size() == 0) {
 			cout<<"Stop"<<endl;
@@ -477,18 +477,16 @@ int main(int , char **)
 		*/
 
 
-		imshow("hsv",imgThresholded);
-		imshow("original",a); 
-		// imshow("after_erosion",d); 
-		//imshow("after_canny",d); 
+		// imshow("hsv",imgThresholded);
+		// imshow("original",a); 
+
+		 
 		//imshow("final_output",f);
 
-
-		waitKey(0);
 		
 
+		//waitKey(0);
 		
-	
 
 		// namedWindow("WebCam",WINDOW_NORMAL);
 		// 	namedWindow("Canny",WINDOW_NORMAL);
@@ -497,4 +495,10 @@ int main(int , char **)
 		// imshow("Canny",a);
 		//waitKey(1);
 	}
+
+
+	auto stop = high_resolution_clock::now(); 
+	auto duration = duration_cast<microseconds>(stop - start); 
+
+	cout << "Duration => " << (float)duration.count() / 1000000/30	 << endl; 
 }
