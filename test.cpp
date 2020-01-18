@@ -75,7 +75,12 @@ void sendCommand(const char *abc)
 }
 
 
-int after_poly = 0;
+bool isValid(int x, int y) {
+	if(x>=0 && x < 480 && y >= 0 && y < 640) 
+		return true;
+	else
+		return false;
+}
 
 
 struct pnt {
@@ -88,7 +93,7 @@ pnt poly_coor(Mat img) {
 	Mat a = img.clone(), imgPoly;
 	//cvtColor(a, imgPoly, CV_BGR2HSV);
 	//inRange(a, Scalar(0,0,0), Scalar(bmax, gmax, rmax), imgPoly);
-	cvtColor(imgPoly, imgPoly, CV_BGR2GRAY);
+	inRange(imgPoly, Scalar(0, 0, 15), Scalar(90, 160, 150), imgPoly);	
 	for(int i=0; i < 1; i++) {                                           //  Thresholding first time
 		GaussianBlur(imgPoly, imgPoly, Size( 5, 5 ), 3, 3 );
 		threshold(imgPoly, imgPoly, 50, 255, THRESH_BINARY);
@@ -152,11 +157,13 @@ int main(int , char **)
 
 	settings("/dev/ttyUSB0");
 
-	VideoCapture cap(1);
+	VideoCapture cap(2);
 	if(!cap.isOpened())
 		return -1;
 
-	int i,j,hmin=45,smin=70,vmin=0,hmax=85,smax=255,vmax=110;
+
+
+	int i,j,hmin=50,smin=60,vmin=60,hmax=95,smax=255,vmax=200;
 	// namedWindow("original",WINDOW_NORMAL);
 	// namedWindow("hsv",WINDOW_NORMAL);
 	//namedWindow("after_canny",WINDOW_NORMAL);
@@ -180,15 +187,19 @@ int main(int , char **)
 		
 
 		Mat img;
-		cap>>img;
+		for (int i=0;i<10;i++)
+		{
+			cap >> img;
+		}
+		namedWindow("4", WINDOW_NORMAL);
+		imshow("4", img );
 		cout<<"img rows = "<<img.rows<<" img.cols = "<<img.cols<<endl;
 		//img = imread(argv[1],1);
 		Mat a = img.clone();
 
 		int bmax = 10, gmax = 10, rmax = 10;
 
-		Mat imgHSV;
-		cvtColor(a,imgHSV,CV_BGR2HSV);
+		cvtColor(a,a,CV_BGR2HSV);
 		
 		// for(i=0;i<img.rows;++i)
 		// {
@@ -212,8 +223,14 @@ int main(int , char **)
 		// int thres = 190;
 
 		Mat imgPoly = img.clone();
-		
-		cvtColor(imgPoly, imgPoly, CV_BGR2GRAY);
+
+
+
+
+		inRange(imgPoly, Scalar(0, 0, 15), Scalar(90, 160, 150), imgPoly);
+
+
+		//cvtColor(imgPoly, imgPoly, CV_BGR2GRAY);
 		
 
 		// for(int i=0; i < 1; i++) {                                           //  Thresholding first time
@@ -243,7 +260,7 @@ int main(int , char **)
 
 		Mat imgThresholded ;
 
-		inRange(imgHSV, Scalar(hmin, smin, vmin), Scalar(hmax, smax, vmax), imgThresholded);      // detects green colour
+		inRange(a, Scalar(hmin, smin, vmin), Scalar(hmax, smax, vmax), imgThresholded);      // detects green colour
 
 		for(int i=0; i<1; i++) {
   			erode(imgThresholded, imgThresholded, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
@@ -295,13 +312,12 @@ int main(int , char **)
 
 		Mat d = imgThresholded.clone();
 
-		// namedWindow("d",WINDOW_NORMAL);
-		// imshow("d", imgThresholded);
-		//split(a, d);
+		
+	
 
 		
 		//Applying canny filter
-		Canny(imgThresholded, d,50,100,3);
+		Canny(imgThresholded, imgThresholded,50,100,3);
 		Canny(imgPoly, imgPoly, 50,100,3);
 
 
@@ -322,10 +338,12 @@ int main(int , char **)
 		findContours(imgPoly, contoursPoly, hierarchyPoly, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0,0));
 
 		
+
+
 		// Finding centre of triangle or rectangle
 
 		
-		float areaPoly = img.rows*img.cols/3000;
+		float areaPoly = img.rows*img.cols/2000;
 
 		int x_poly = 0, y_poly = 0, i_poly;
 		// Removing polygons having area less than minimum area
@@ -391,18 +409,13 @@ int main(int , char **)
 		int vert_centre_strip = img.cols/5;
 
   		if(contours.size() > 0) {
-			// vector <vector<Point>> contourI;
-			// contourI.push_back(contours[0]);
-			// double AA = contourArea(contourI[0]);
-			// cout<<" area contour ka = "<<AA<<endl;
-
 
 
 			// Mat f(d.rows, d.cols, CV_8UC3, Scalar(0,0,0));
 			// drawContours(f, contours, -1, Scalar(232,112,114), 2, 8 );
 
 			
-			float Area = (img.rows*img.cols)/7000;
+			float Area = 100;
 			//cout<<"Area = "<<Area<<endl;
 
 			//cout<<"X_coor = "<<X_coor<<" Y_coor = "<<Y_coor<<endl;
@@ -416,15 +429,18 @@ int main(int , char **)
 			}
 
 
-			drawContours(imgPoly, contoursPoly, -1, Scalar(232,112,114), 2, 8 );
-			for(int i = 0; i<img.rows; i++) {
-				imgPoly.at<uchar>(i, img.cols/2 - vert_centre_strip) = 255;
-				imgPoly.at<uchar>(i, img.cols/2 + vert_centre_strip) = 255;
-			}
+
+
+			drawContours(imgPoly, contoursPoly, -1, Scalar(255), 2, 8 );
+
+			
+
 			
 
 		}
 		
+
+
 
 		vector<Moments> mu(contours.size());
 
@@ -438,6 +454,10 @@ int main(int , char **)
 		}
 
 
+		drawContours(imgThresholded, contoursPoly, -1, Scalar(255), 2, 8 );
+	
+
+
 		int X_coor, Y_coor;
 
 		X_coor = 0; Y_coor = 0; 
@@ -448,23 +468,47 @@ int main(int , char **)
 			x_temp = p.x;
 			y_temp = p.y;
 			//cout<<"x_temp = "<<x_temp<<" y_temp = "<<y_temp<<endl;
-			if(x_temp > 7*(float)img.rows/10 )
+			if(x_temp < 3*(float)img.rows/10 )
 				continue;
 			if(x_temp > X_coor) {
 				X_coor = x_temp;
 				Y_coor = y_temp;
 			}
 		}
-
-		for(int u = -3; u <4 ;u++) {
+		for(int u = -3; u<4; u++) {
 			for(int v = -3; v<4; v++) {
-				imgPoly.at<uchar>(X_coor + v,Y_coor + u) = 255;
+				if(isValid(X_coor + v, Y_coor + u)) {
+					//imgPoly.at<uchar>(X_coor + v,Y_coor + u) = 255;
+					imgThresholded.at<uchar>(X_coor + v,Y_coor + u) = 255;
+				}
+			}
+		}
+		if(contoursPoly.size() > 0) {
+			for(int u = -3; u<4; u++) {
+				for(int v = -3; v<4; v++) {
+					if(isValid(x_poly + v, y_poly + u)) {
+						//imgPoly.at<uchar>(X_coor + v,Y_coor + u) = 255;
+						imgPoly.at<uchar>(x_poly + v,y_poly + u) = 255;
+					}
+				}
 			}
 		}
 
-		namedWindow("fun", 0);
-		imshow("fun", imgPoly);
-		waitKey(10);
+
+		for(int i = 0; i<img.rows; i++) {
+			imgPoly.at<uchar>(i, img.cols/2 - vert_centre_strip) = 255;
+			imgPoly.at<uchar>(i, img.cols/2 + vert_centre_strip) = 255;
+
+			imgThresholded.at<uchar>(i, img.cols/2 - vert_centre_strip) = 255;
+			imgThresholded.at<uchar>(i, img.cols/2 + vert_centre_strip) = 255;
+		}
+
+
+		namedWindow("1",WINDOW_NORMAL);
+		imshow("1", imgThresholded);
+		namedWindow("2",WINDOW_NORMAL);
+		imshow("2", imgPoly);
+		waitKey(1);
 
 		//cout<<"x_coor = "<<X_coor<<" y_coor = "<<Y_coor<<endl;
 		
@@ -476,200 +520,145 @@ int main(int , char **)
 
 		//cout<<"contours.size() = "<<contours.size()<<endl;
 		
-		cout << "njfbbvjsb\n";
-
-		// if(contours.size() == 0) {
-		// 	//cout<<"main chala"<<endl;
-		// 	cout<<"Stop"<<endl;
-		// 	Command = '0';
-		// 	sendCommand(&Command);
-			
-		// }
-		// else if(contoursPoly.size() > 0 && flagPoly)   {
-		// 	cout<<"Going in else if"<<endl;
-		// 	if(x_poly > X_coor && x_poly < 7*(img.rows/10))  {
-				
-		// 		if( y_poly > img.cols/2 + vert_centre_strip )  {
-		// 			// turn right;
-		// 			cout<<"D"<<endl;
-		// 			Command = '3';
-		// 			sendCommand(&Command);
-		// 			usleep(100000);
-		// 			Command = '0';
-		// 			sendCommand(&Command);
-		// 		}
-		// 		else if( y_poly < img.cols/2 - vert_centre_strip) {
-		// 			// turn left;
-		// 			cout<<"A"<<endl;
-		// 			Command = '2';
-		// 			sendCommand(&Command);
-		// 			usleep(100000);
-		// 			Command = '0';
-		// 			sendCommand(&Command);
-		// 		}
-		// 		else {
-		// 			// check triangle or rectangle
-		// 			vector<Point> approx;
-
-		// 			approxPolyDP(Mat(contoursPoly[i_poly]), approx, arcLength(Mat(contoursPoly[i_poly]), true) * 0.01, true);
-		// 			if(approx.size() == 3) {
-		// 				Command = '6';
-		// 				// sendCommand(&Command);
-		// 				usleep(500000);
-		// 				Command = '7';
-		// 				// sendCommand(&Command);
-		// 				cout<<"Triangle Found"<<endl;
-		// 				while(1) {
-							
-		// 					cout<<"W"<<endl;
-		// 					cout<<"A"<<endl;
-		// 					Command = '1';
-		// 					sendCommand(&Command);
-		// 					usleep(300000);
-		// 					Command = '2';
-		// 					sendCommand(&Command);
-		// 					usleep(100000);
-		// 				    Command = '0';
-		// 				    sendCommand(&Command);
-		// 					cap>>img;
-		// 					pnt p;
-		// 					p = poly_coor(img);
-		// 					if(p.x == 0 && p.y == 0)
-		// 						break;
-		// 					if(p.x > 7*(img.rows/10) || p.y > img.cols-img.cols/6)
-		// 						break;
-
-							
-		// 				}
-		// 			}
-		// 			else if(approx.size() == 4) {
-		// 				// -- LED ON
-		// 				for(int i=0; i< 2; i++){
-		// 					Command = '6';
-		// 					sendCommand(&Command);
-		// 					usleep(500000);
-		// 					Command = '7';
-		// 					sendCommand(&Command);
-		// 					usleep(300000);
-		// 				}
-		// 				cout<<"Rectangle Found"<<endl;
-		// 				while(1) {
-		// 					// turn right
-		// 					// move forward
-		// 					cout<<"W"<<endl;
-		// 					cout<<"D"<<endl;
-		// 					Command = '1';
-		// 					sendCommand(&Command);
-		// 					usleep(300000);
-		// 					Command = '3';
-		// 					sendCommand(&Command);
-		// 					usleep(100000);
-		// 				    Command = '0';
-		// 				    sendCommand(&Command);
-		// 					cap>>img;
-		// 					pnt p;
-		// 					p = poly_coor(img);
-		// 					if(p.x == 0 && p.y == 0)
-		// 						break;
-		// 					if(p.x > 8.5*(img.rows/10) || p.y < img.cols/6)
-		// 						break;
-
-							
-		// 				}
-		// 			}
-				
-		// 			// if triangle turn left and simultneously move forward till x_poly > 8.5*(img.rows/10)
-
-		// 			// else turn right and simultaneously move forward
-		// 		}
-		// 	}
-		// }
-		// else {
-		// 	cout << "Going in else" << endl;
-			
-		// 	if( Y_coor > img.cols/2 + vert_centre_strip )  {
-		// 		// turn right;
-		// 		cout<<"D"<<endl;
-		// 		Command = '3';
-		// 		usleep(100000);
-		// 		Command = '0';
-		// 		sendCommand(&Command);
 	
-		// 	}
-		// 	else if( Y_coor < img.cols/2 - vert_centre_strip){
-		// 		// turn left;
-		// 		cout<<"A"<<endl;
-		// 		Command = '2';
-		// 		sendCommand(&Command);
-		// 		usleep(100000);
-		// 		Command = '0';
-		// 		sendCommand(&Command);
-		// 	}
-		// 	else {
-		// 		// move forward;
-		// 		cout<<"W"<<endl;
-		// 		Command = '1';
-		// 		sendCommand(&Command);
-		// 		usleep(100000);
-		// 		Command = '0';
-		// 		sendCommand(&Command);
-		// 	}
-		// }
 
-
-		/*
-		char x;
-		float areaScreen = img.rows * img.cols;
-
-		//cout<<"areaScreen = "<<areaScreen<<" threshold = "<<threshold<<endl;
-		if(contours.size() == 0)
-			cout<<"None"<<endl;
-		else if(Area < (areaScreen/20) ) {
-			if(X_coor > 2*(img.cols/3) ){
-				x = 'D';
-				//sendCommand(&x);
-				cout<<"D"<<endl;
-			}
-			else if(X_coor > img.cols/3 && Y_coor < (float)2*img.cols/3  ) {
-				x = 'W';
-				//sendCommand(&x);
-				cout<<"W"<<endl;
-			}
-			else if(X_coor < (int)2*img.cols/3 ) {
-				x = 'A';
-				//sendCommand(&x);
-				cout<<"A"<<endl;
-			}
+		if(contours.size() == 0) {
+			//cout<<"main chala"<<endl;
+			cout<<"Stop"<<endl;
+			Command = '0';
+			sendCommand(&Command);
 			
 		}
-		else if(Area > (areaScreen/15) ){
-			x = 'S';
-			//sendCommand(&x);
-			cout<<"S"<<endl;
+		else if(contoursPoly.size() > 0 && flagPoly)   {
+			cout<<"Going in else if"<<endl;
+			if(x_poly > X_coor && x_poly < 7*(img.rows/10))  {
+				
+				if( y_poly > img.cols/2 + vert_centre_strip )  {
+					// turn right;
+					cout<<"D"<<endl;
+					Command = '3';
+					sendCommand(&Command);
+					// usleep(100000);
+					
+				}
+				else if( y_poly < img.cols/2 - vert_centre_strip) {
+					// turn left;
+					cout<<"A"<<endl;
+					Command = '2';
+					sendCommand(&Command);
+					// usleep(100000);
+					
+				}
+				else {
+					// check triangle or rectangle
+					vector<Point> approx;
+
+					approxPolyDP(Mat(contoursPoly[i_poly]), approx, arcLength(Mat(contoursPoly[i_poly]), true) * 0.01, true);
+					if(approx.size() == 3) {
+						Command = '6';
+						sendCommand(&Command);
+						usleep(500000);
+						Command = '7';
+						sendCommand(&Command);
+						cout<<"Triangle Found"<<endl;
+						while(1) {
+							
+							cout<<"W"<<endl;
+							cout<<"A"<<endl;
+							Command = '1';
+							sendCommand(&Command);
+							usleep(300000);
+							Command = '2';
+							sendCommand(&Command);
+							usleep(100000);
+						    Command = '0';
+						    sendCommand(&Command);
+							// cap>>img;
+							// pnt p;
+							// p = poly_coor(img);
+							// if(p.x == 0 && p.y == 0)
+							// 	break;
+							// if(p.x > 7*(img.rows/10) || p.y > img.cols-img.cols/6)
+							// 	break;
+
+							break;
+
+							
+						}
+					}
+					else if(approx.size() == 4) {
+						// -- LED ON
+						for(int i=0; i< 2; i++){
+							Command = '6';
+							sendCommand(&Command);
+							usleep(500000);
+							Command = '7';
+							sendCommand(&Command);
+							usleep(300000);
+						}
+						cout<<"Rectangle Found"<<endl;
+						while(1) {
+							// turn right
+							// move forward
+							cout<<"W"<<endl;
+							cout<<"D"<<endl;
+							Command = '1';
+							sendCommand(&Command);
+							usleep(300000);
+							Command = '3';
+							sendCommand(&Command);
+							usleep(100000);
+						    Command = '0';
+						    sendCommand(&Command);
+							
+							break;
+							
+						}
+					}
+				
+					// if triangle turn left and simultneously move forward till x_poly > 8.5*(img.rows/10)
+
+					// else turn right and simultaneously move forward
+				}
+			}
+		}
+		else {
+			cout << "Going in else" << endl;
+			
+			if( Y_coor > img.cols/2 + vert_centre_strip )  {
+				// turn right;
+				cout<<"D"<<endl;
+				Command = '3';
+				usleep(300000);
+				
+	
+			}
+			else if( Y_coor < img.cols/2 - vert_centre_strip){
+				// turn left;
+				cout<<"A"<<endl;
+				Command = '2';
+				sendCommand(&Command);
+				usleep(300000);
+				
+			}
+			else {
+				// move forward;
+				cout<<"W"<<endl;
+				Command = '1';
+				sendCommand(&Command);
+				usleep(900000);
+				Command = '1';
+				sendCommand(&Command);
+
+
+
+			}
 		}
 
-		*/
-
-
-		// imshow("hsv",imgThresholded);
-		// imshow("original",a); 
-
-		 
-		//imshow("final_output",f);
-
+	
 		
-
-		//waitKey(0);
-		
-
-		// namedWindow("WebCam",WINDOW_NORMAL);
-		// 	namedWindow("Canny",WINDOW_NORMAL);
-
-		// imshow("WebCam",img);
-		// imshow("Canny",a);
-		//waitKey(1);
 	}
-	cout << "njfbbvjsb\n";
+
 
 	auto stop = high_resolution_clock::now(); 
 	auto duration = duration_cast<microseconds>(stop - start); 
