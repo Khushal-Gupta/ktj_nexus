@@ -38,8 +38,45 @@ using namespace std::chrono;
 using namespace std;
 using namespace cv;
 
+
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <termios.h>
+
+int fd;
+void settings(const char *abc)
+{
+  	fd = open(abc,O_RDWR | O_NOCTTY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
+  	usleep(3500000);
+                                	/* O_RDWR Read/Write access to serial port       	*/
+                                	/* O_NOCTTY - No terminal will control the process   */
+                                	/* O_NDELAY -Non Blocking Mode,Does not care about-  */
+                                	/* -the status of DCD line,Open() returns immediatly */                                        
+                                    
+        	if(fd == -1)                    	/* Error Checking */
+               	printf("\n  Error! in Opening ttyUSB0  ");
+        	else
+               	printf("\n  ttyUSB0 Opened Successfully ");
+   	struct termios toptions;     	/* get current serial port settings */
+   	tcgetattr(fd, &toptions);    	/* set 9600 baud both ways */
+   	cfsetispeed(&toptions, B9600);
+   	cfsetospeed(&toptions, B9600);   /* 8 bits, no parity, no stop bits */
+   	toptions.c_cflag &= ~PARENB;
+   	toptions.c_cflag &= ~CSTOPB;
+   	toptions.c_cflag &= ~CSIZE;
+   	toptions.c_cflag |= CS8;     	/* Canonical mode */
+   	toptions.c_lflag |= ICANON;   	/* commit the serial port settings */
+   	tcsetattr(fd, TCSANOW, &toptions);
+}
+void sendCommand(const char *abc)
+{
+   write(fd, abc, 1);
+}
+
+
 int after_poly = 0;
-/*
+
 
 struct pnt {
 	int x, y;	
@@ -49,30 +86,53 @@ struct pnt {
 pnt poly_coor(Mat img) {
 	int bmax = 15, gmax = 15, rmax = 15;
 	Mat a = img.clone(), imgPoly;
+	cvtColor(a, imgPoly, CV_BGR2HSV);
 	inRange(a, Scalar(0,0,0), Scalar(bmax, gmax, rmax), imgPoly);
-	for(int i=0; i<3; i++) {
-  		erode(imgPoly, imgPoly, getStructuringElement(MORPH_RECT, Size(3, 3)));
+	cvtColor(imgPoly, imgPoly, CV_BGR2GRAY);
+	for(int i=0; i < 1; i++) {                                           //  Thresholding first time
+		GaussianBlur(imgPoly, imgPoly, Size( 5, 5 ), 3, 3 );
+		threshold(imgPoly, imgPoly, 50, 255, THRESH_BINARY);
 	}
-	for(int i=0; i<10; i++) {
+	for(int i=0; i<1; i++) {
+		erode(imgPoly, imgPoly, getStructuringElement(MORPH_RECT, Size(3, 3)));
+	}
+	for(int i=0; i<1; i++) {
 		dilate(imgPoly, imgPoly, getStructuringElement(MORPH_RECT, Size(3, 3)));
 	}
+	for(int i = 0 ;i < 1; i++) {
+		erode(imgPoly, imgPoly, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+		GaussianBlur( imgPoly, imgPoly, Size( 5, 5 ), 3, 3 );
+		threshold(imgPoly, imgPoly, 230, 255, THRESH_BINARY);
+	}
+
 	Canny(imgPoly, imgPoly, 50,100,3);
 	vector <vector<Point>> contoursPoly;
 	vector < Vec4i > hierarchyPoly; 
-	findContours(d, contoursPoly, hierarchyPoly, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0,0));
-
+	findContours(imgPoly, contoursPoly, hierarchyPoly, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0,0));
+	
+	// Removing element having area less than certain area
+	float areaPoly = img.rows*img.cols/1000;
+	for(auto j=contoursPoly.end()-1; j!=contoursPoly.begin()-1; j--) {	
+		if( contourArea(*j) < areaPoly) {
+			
+			contoursPoly.erase(j);
+		}
+	}
 
 	// Finding centre of triangle or rectangle
 	vector<Moments> muPoly(contoursPoly.size());
-	float areaPoly ;
 	int x_poly = 0, y_poly = 0, i_poly;
-	for(int i=0; i< contours.size(); i++) {
-		muPoly[i] = moments(contours[i]);
-		if((int)mu[i].m01 / mu[i].m00 > x_poly) {
-			x_poly = (int)mu[i].m01 / mu[i].m00;
-			y_poly = (int)mu[i].m10 / mu[i].m00;
+
+	for(int i=0; i< contoursPoly.size(); i++) {
+		muPoly[i] = moments(contoursPoly[i]);
+		if( contourArea(contoursPoly[i]) > areaPoly ) {
+			Point2f p(muPoly[i].m01 / muPoly[i].m00, muPoly[i].m10 / muPoly[i].m00 );
+			x_poly = p.x;
+			y_poly = p.y;
 			i_poly = i;
+			areaPoly = contourArea(contoursPoly[i]);
 		}
+
 	
 	}
 	pnt p1;
@@ -84,9 +144,13 @@ pnt poly_coor(Mat img) {
  
 
 
-*/ 
+
 int main(int argc, char **argv)
-{
+{	
+
+
+	////settings(/dev/ttyACMO/Arduino/Genuino Uno);
+
 	VideoCapture cap(0);
 	if(!cap.isOpened())
 		return -1;
@@ -107,6 +171,7 @@ int main(int argc, char **argv)
 	// createTrackbar("smax","hsv",&smax,255);
 
 	auto start = high_resolution_clock::now(); 
+
 
 	for(int u=0 ; u<30; u++)
 	{
@@ -201,7 +266,7 @@ int main(int argc, char **argv)
   		}
 
   		
-
+  	
   		// Turning boundary pixels to black
 		
   		for(int i=0; i<img.cols; i++) {
@@ -260,9 +325,24 @@ int main(int argc, char **argv)
 
 
 		// Finding centre of triangle or rectangle
-		vector<Moments> muPoly(contoursPoly.size());
+
+		
 		float areaPoly = img.rows*img.cols/1000;
+
 		int x_poly = 0, y_poly = 0, i_poly;
+		// Removing polygons having area less than minimum area
+		for(auto j=contoursPoly.end()-1; j!=contoursPoly.begin()-1; j--) {
+			
+			if( contourArea(*j) < areaPoly) {
+				
+				contoursPoly.erase(j);
+			}
+		}
+		// cout<<"contoursPoly.size() = "<<contoursPoly.size()<<endl;
+		// cout<<"contourArea(contoursPoly[0]) = "<<contourArea(contoursPoly[0])<<endl;
+
+		vector<Moments> muPoly(contoursPoly.size());
+
 		for(int i=0; i< contoursPoly.size(); i++) {
 			muPoly[i] = moments(contoursPoly[i]);
 			if( contourArea(contoursPoly[i]) > areaPoly ) {
@@ -272,6 +352,7 @@ int main(int argc, char **argv)
 				i_poly = i;
 				areaPoly = contourArea(contoursPoly[i]);
 			}
+
 		
 		}		
 
@@ -282,18 +363,20 @@ int main(int argc, char **argv)
 
 
 		// Drawing largest contour for polygon
-		vector <vector<Point>> contoursPolyBig;
-		contoursPolyBig.push_back(contoursPoly[i_poly]);
+		// --vector <vector<Point>> contoursPolyBig;
+		// --contoursPolyBig.push_back(contoursPoly[i_poly]);
 
 		// cout<<"contoursPolyBig.size() = "<<contoursPolyBig.size()<<endl;
 
-		// drawContours(imgPoly, contoursPolyBig, -1, Scalar(232,112,114), 2, 8 );
+		//drawContours(imgPoly, contoursPoly, -1, Scalar(232,112,114), 2, 8 );
 
 		// namedWindow("imgPoly", WINDOW_NORMAL);
 		// imshow("imgPoly", imgPoly);
-
-		vector<Point> approx;
-		approxPolyDP(Mat(contoursPoly[i_poly]), approx, arcLength(Mat(contoursPoly[i_poly]), true) * 0.01, true);
+		// waitKey(0);
+		if(contoursPoly.size() > 0) {
+			vector<Point> approx;
+			approxPolyDP(Mat(contoursPoly[i_poly]), approx, arcLength(Mat(contoursPoly[i_poly]), true) * 0.01, true);
+		}
 		//cout<<"approx.size() = "<<approx.size()<<endl;
 
 		//cout<<"contour size = "<<contours.size()<<endl;
@@ -314,17 +397,13 @@ int main(int argc, char **argv)
 			// drawContours(f, contours, -1, Scalar(232,112,114), 2, 8 );
 
 			
-			//imshow("final_output",f);
-
-
-			
 			float Area = (img.rows*img.cols)/1200;
 			//cout<<"Area = "<<Area<<endl;
 
 			//cout<<"X_coor = "<<X_coor<<" Y_coor = "<<Y_coor<<endl;
 
 			// Removing element having area less than Area;
-			for(auto i=contours.begin(); i!= contours.end(); i++) {
+			for(auto i=contours.end()-1; i!= contours.begin()-1; i--) {
 				//cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
 				if(contourArea(*i) < Area) {
 					contours.erase(i);
@@ -341,8 +420,9 @@ int main(int argc, char **argv)
 				// X_coor = (int)mu[i].m01 / mu[i].m00;
 				// Area = contourArea(contours[i]);
 			
-
 		}
+
+
 		int X_coor, Y_coor;
 
 		X_coor = 0; Y_coor = 0; 
@@ -369,66 +449,100 @@ int main(int argc, char **argv)
 
 		//cout<<"9*(img.rows/10) = "<<9*(img.rows/10)<<endl;
 
+		//cout<<"contours.size() = "<<contours.size()<<endl;
+		
+		char Command;
 		if(contours.size() == 0) {
+			//cout<<"main chala"<<endl;
 			cout<<"Stop"<<endl;
-		}
-		else if(x_poly > X_coor && x_poly < 9*(img.rows/10))  {
-			if( y_poly > img.cols/2 + vert_centre_strip )  {
-				// turn right;
-				cout<<"D"<<endl;
-			}
-			else if( y_poly < img.cols/2 - vert_centre_strip) {
-				// turn left;
-				cout<<"A"<<endl;
-			}
-			else {
-				// check triangle or rectangle
-				vector<Point> approx;
-
-				approxPolyDP(Mat(contoursPoly[i_poly]), approx, arcLength(Mat(contoursPoly[i_poly]), true) * 0.01, true);
-				if(approx.size() == 3) {
-					cout<<"Triangle Found"<<endl;
-					while(0) {
-						// turn left
-						// move forward
-						/*
-						cap>>img
-						pnt p;
-						p = poly_coor(img);
-						if(p.x == 0 && p.y == 0)
-							break;
-						if(p.x > 9*(img.rows/10) || p.y > img.cols-img.cols/8)
-							break;
-
-						*/
-					}
-				}
-				else if(approx.size() == 4) {
-					cout<<"Rectangle Found"<<endl;
-					while(0) {
-						// turn right
-						// move forward
-						cout<<"D and W"<<endl;
-						/*
-						cap>>img
-						pnt p;
-						p = poly_coor(img);
-						if(p.x == 0 && p.y == 0)
-							break;
-						if(p.x > 9*(img.rows/10) || p.y < img.cols/8)
-							break;
-
-						*/
-					}
-				}
+			Command = '0';
+			// sendCommand(&Command);
 			
-				// if triangle turn left and simultneously move forward till x_poly > 9*(img.rows/10)
+		}
+		else if(contoursPoly.size() > 0)   {
+			//cout<<"main chala"<<endl;
+			if(x_poly > X_coor && x_poly < 9*(img.rows/10))  {
+				
+				if( y_poly > img.cols/2 + vert_centre_strip )  {
+					// turn right;
+					cout<<"D"<<endl;
+					Command = '3';
+					// sendCommand(&Command);
+				}
+				else if( y_poly < img.cols/2 - vert_centre_strip) {
+					// turn left;
+					cout<<"A"<<endl;
+					Command = '2';
+					// sendCommand(&Command);
+				}
+				else {
+					// check triangle or rectangle
+					vector<Point> approx;
 
-				// else turn right and simultaneously move forward
+					approxPolyDP(Mat(contoursPoly[i_poly]), approx, arcLength(Mat(contoursPoly[i_poly]), true) * 0.01, true);
+					if(approx.size() == 3) {
+						Command = '8';
+						// sendCommand(&Command);
+						Command = '9';
+						// sendCommand(&Command);
+						cout<<"Triangle Found"<<endl;
+						while(0) {
+							
+							cout<<"W"<<endl;
+							cout<<"A"<<endl;
+							Command = '1';
+							// sendCommand(&Command);
+							Command = '2';
+							// sendCommand(&Command);
+							cap>>img;
+							pnt p;
+							p = poly_coor(img);
+							if(p.x == 0 && p.y == 0)
+								break;
+							if(p.x > 8.5*(img.rows/10) || p.y > img.cols-img.cols/6)
+								break;
+
+							
+						}
+					}
+					else if(approx.size() == 4) {
+						// -- LED ON
+						for(int i=0; i< 2; i++){
+							Command = '8';
+							// sendCommand(&Command);
+							Command = '9';
+							// sendCommand(&Command);
+						}
+						cout<<"Rectangle Found"<<endl;
+						while(0) {
+							// turn right
+							// move forward
+							cout<<"W"<<endl;
+							cout<<"D"<<endl;
+							Command = '1';
+							// sendCommand(&Command);
+							Command = '3';
+							// sendCommand(&Command);
+							cap>>img;
+							pnt p;
+							p = poly_coor(img);
+							if(p.x == 0 && p.y == 0)
+								break;
+							if(p.x > 8.5*(img.rows/10) || p.y < img.cols/6)
+								break;
+
+							
+						}
+					}
+				
+					// if triangle turn left and simultneously move forward till x_poly > 8.5*(img.rows/10)
+
+					// else turn right and simultaneously move forward
+				}
 			}
 		}
 		else {
-		
+			
 			if( Y_coor > img.cols/2 + vert_centre_strip )  {
 				// turn right;
 				cout<<"D"<<endl;
@@ -442,6 +556,7 @@ int main(int argc, char **argv)
 				cout<<"W"<<endl;
 			}
 		}
+
 
 		/*
 		char x;

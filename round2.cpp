@@ -3,11 +3,49 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include<iostream>
 #include<algorithm>
+#include <chrono> 
+using namespace std::chrono; 
 #include<cmath>
 using namespace std;
 using namespace cv;
 #include "opencv2/calib3d/calib3d.hpp"
 
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <termios.h>
+//////////////////////////////////////////////////////////////
+int fd;
+void settings(const char *abc)
+{
+  	fd = open(abc,O_RDWR | O_NOCTTY); /* ttyUSB0 is the FT232 based USB2SERIAL Converter   */
+  	usleep(3500000);
+                                	/* O_RDWR Read/Write access to serial port       	*/
+                                	/* O_NOCTTY - No terminal will control the process   */
+                                	/* O_NDELAY -Non Blocking Mode,Does not care about-  */
+                                	/* -the status of DCD line,Open() returns immediatly */                                        
+                                    
+        	if(fd == -1)                    	/* Error Checking */
+               	printf("\n  Error! in Opening ttyUSB0  ");
+        	else
+               	printf("\n  ttyUSB0 Opened Successfully ");
+   	struct termios toptions;     	/* get current serial port settings */
+   	tcgetattr(fd, &toptions);    	/* set 9600 baud both ways */
+   	cfsetispeed(&toptions, B9600);
+   	cfsetospeed(&toptions, B9600);   /* 8 bits, no parity, no stop bits */
+   	toptions.c_cflag &= ~PARENB;
+   	toptions.c_cflag &= ~CSTOPB;
+   	toptions.c_cflag &= ~CSIZE;
+   	toptions.c_cflag |= CS8;     	/* Canonical mode */
+   	toptions.c_lflag |= ICANON;   	/* commit the serial port settings */
+   	tcsetattr(fd, TCSANOW, &toptions);
+}
+void sendCommand(const char *abc)
+{
+   write(fd, abc, 1);
+}
+
+///////////////////////////////////////
 
 vector <int> storedNumber ;
 
@@ -25,20 +63,20 @@ Point2f getCoorForBarcode(Mat img);
 
 int main() {
 
+	//settings(/dev/ttyACMO/Arduino/Genuino Uno);
+
 	VideoCapture cap(0);
 	if(!cap.isOpened())
 		return -1;
-
+	auto start = high_resolution_clock::now(); 
 
 	int i,j,Green_hmin = 55, Green_smin =0, Green_vmin = 0, Green_hmax=65, Green_smax=255, Green_vmax=255;
 	int Red_hmin = 55, Red_smin =0,Red_vmin = 0, Red_hmax = 0, Red_smax=255, Red_vmax=255;
 	int Blue_hmin = 90, Blue_smin =0, Blue_vmin = 0, Blue_hmax=65, Blue_smax=255, Blue_vmax=255;
 	
-	namedWindow("original",WINDOW_NORMAL);
-	namedWindow("hsv",WINDOW_NORMAL);
-	//namedWindow("after_canny",WINDOW_NORMAL);
-	// namedWindow("after_canny",WINDOW_NORMAL);
-	namedWindow("final_output",WINDOW_NORMAL);
+	// namedWindow("original",WINDOW_NORMAL);
+	// namedWindow("hsv",WINDOW_NORMAL);
+	// namedWindow("final_output",WINDOW_NORMAL);
 
 
 	for(int u=0; u<1; u++) {
@@ -65,61 +103,61 @@ int main() {
 
 
 		// Eroding and Dilating the images
-		for(int i=0; i<3; i++) {
-  			erode(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-  			erode(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-  			erode(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+		// for(int i=0; i<2; i++) {
+  // 			erode(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  // 			erode(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  // 			erode(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
   			
-		}
-  		for(int i=0; i<5; i++) {
-  			dilate(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-  			dilate(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-  			dilate(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+		// }
+  		// for(int i=0; i<2; i++) {
+  		// 	dilate(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  		// 	dilate(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  		// 	dilate(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
   			
-  		}
+  		// }
 
 
   		// Applying Gaussian Blur and Thresholding to image
-  		for(int i = 0 ;i < 1; i++) {
-  			erode(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
-  			erode(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
-  			erode(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
+  	// 	for(int i = 0 ;i < 1; i++) {
+  	// 		erode(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  	// 		erode(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  	// 		erode(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
 
-  			GaussianBlur(blueThresh, blueThresh, Size( 7, 7 ), 3, 3 );
-  			GaussianBlur(greenThresh, greenThresh, Size( 7, 7 ), 3, 3 );
-  			GaussianBlur(redThresh, redThresh, Size( 7, 7 ), 3, 3 );
+  	// 		GaussianBlur(blueThresh, blueThresh, Size( 5, 5 ), 3, 3 );
+  	// 		GaussianBlur(greenThresh, greenThresh, Size( 5, 5 ), 3, 3 );
+  	// 		GaussianBlur(redThresh, redThresh, Size( 5, 5 ), 3, 3 );
 
-			threshold(blueThresh, blueThresh, 230, 255, THRESH_BINARY);
-			threshold(greenThresh, greenThresh, 230, 255, THRESH_BINARY);
-			threshold(redThresh, redThresh, 230, 255, THRESH_BINARY);
-  		}
+			// threshold(blueThresh, blueThresh, 230, 255, THRESH_BINARY);
+			// threshold(greenThresh, greenThresh, 230, 255, THRESH_BINARY);
+			// threshold(redThresh, redThresh, 230, 255, THRESH_BINARY);
+  	// 	}
 
 
   		// Turning boundary pixels to black
 		
   		for(int i=0; i<img.cols; i++) {
-  			for(int k = 0; k < 8; k++) {
+  			for(int k = 0; k < 5; k++) {
   				blueThresh.at<uchar>(k, i) = 0;
   				greenThresh.at<uchar>(k, i) = 0;
   				redThresh.at<uchar>(k, i) = 0;
   			}
   		}
   		for(int i=0; i<img.cols; i++) {
-  			for(int k = 1; k < 8 ;k++){
+  			for(int k = 1; k < 5 ;k++){
   				blueThresh.at<uchar>(img.rows-k, i) = 0;
   				greenThresh.at<uchar>(img.rows-k, i) = 0;
   				redThresh.at<uchar>(img.rows-k, i) = 0;
   			}
   		}
   		for(int i=0; i<img.rows; i++) {
-  			for(int k = 0 ;k <8; k++ ){
+  			for(int k = 0 ;k <5; k++ ){
   				blueThresh.at<uchar>(i, k) = 0;
   				greenThresh.at<uchar>(i, k) = 0;
   				redThresh.at<uchar>(i, k) = 0;
   			}
 		}
   		for(int i=0; i<img.rows; i++) {
-  			for(int k = 1; k < 8 ;k++) {
+  			for(int k = 1; k < 5 ;k++) {
   				blueThresh.at<uchar>(i, img.cols-k) = 0;
   				greenThresh.at<uchar>(i, img.cols-k) = 0;
   				redThresh.at<uchar>(i, img.cols-k) = 0;
@@ -128,13 +166,13 @@ int main() {
 
 
   		for(int i = 0 ;i < 1; i++) {
-  			erode(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
-  			erode(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
-  			erode(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(9, 9)));
+  			erode(blueThresh, blueThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  			erode(greenThresh, greenThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+  			erode(redThresh, redThresh, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
 
-  			GaussianBlur(blueThresh, blueThresh, Size( 7, 7 ), 3, 3 );
-  			GaussianBlur(greenThresh, greenThresh, Size( 7, 7 ), 3, 3 );
-  			GaussianBlur(redThresh, redThresh, Size( 7, 7 ), 3, 3 );
+  			GaussianBlur(blueThresh, blueThresh, Size( 5, 5 ), 3, 3 );
+  			GaussianBlur(greenThresh, greenThresh, Size( 5, 5 ), 3, 3 );
+  			GaussianBlur(redThresh, redThresh, Size( 5, 5 ), 3, 3 );
 
 			threshold(blueThresh, blueThresh, 230, 255, THRESH_BINARY);
 			threshold(greenThresh, greenThresh, 230, 255, THRESH_BINARY);
@@ -168,9 +206,9 @@ int main() {
 
 
 		//Drawing Contours for each colour
-		drawContours(blueThresh, contoursBlue, -1, Scalar(232,112,114), 2, 8 );
-		drawContours(greenThresh, contoursGreen, -1, Scalar(232,112,114), 2, 8 );
-		drawContours(redThresh, contoursRed, -1, Scalar(232,112,114), 2, 8 );
+		// drawContours(blueThresh, contoursBlue, -1, Scalar(232,112,114), 2, 8 );
+		// drawContours(greenThresh, contoursGreen, -1, Scalar(232,112,114), 2, 8 );
+		// drawContours(redThresh, contoursRed, -1, Scalar(232,112,114), 2, 8 );
 
 
 
@@ -178,22 +216,22 @@ int main() {
 
 		float minContArea = (img.rows*img.cols)/1200;
 
-		for(auto i=contoursBlue.begin(); i!= contoursBlue.end(); i++) {
-			cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
+		for(auto i=contoursBlue.end()-1; i!= contoursBlue.begin()-1; i--) {
+			//cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
 			if(contourArea(*i) < minContArea) {
 				contoursBlue.erase(i);
 			}
 		}
 
-		for(auto i=contoursGreen.begin(); i!= contoursGreen.end(); i++) {
-			cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
+		for(auto i=contoursGreen.end()-1; i!= contoursGreen.begin()-1; i--) {
+			//cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
 			if(contourArea(*i) < minContArea) {
 				contoursGreen.erase(i);
 			}
 		}
 
-		for(auto i=contoursRed.begin(); i!= contoursRed.end(); i++) {
-			cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
+		for(auto i=contoursRed.end()-1; i!= contoursRed.begin()-1; i--) {
+			//cout<<"contourArea(*i) = "<<contourArea(*i)<<endl;
 			if(contourArea(*i) < minContArea) {
 				contoursRed.erase(i);
 			}
@@ -202,9 +240,6 @@ int main() {
 		// Calculating Moments    X and Y coordinates ----////////////////////////////////////////////////
 
 		vector<Moments> muBlue(contoursBlue.size());
-		vector<Moments> muGreen(contoursGreen.size());
-		vector<Moments> muRed(contoursRed.size());
-
 		for(int i=0; i< contoursBlue.size(); i++) {
 			
 				muBlue[i] = moments(contoursBlue[i]);
@@ -213,7 +248,7 @@ int main() {
 				// Area = contourArea(contours[i]);
 		}
 
-
+		vector<Moments> muGreen(contoursGreen.size());
 		for(int i=0; i< contoursGreen.size(); i++) {
 			
 				muGreen[i] = moments(contoursGreen[i]);
@@ -222,6 +257,7 @@ int main() {
 				// Area = contourArea(contours[i]);
 		}
 
+		vector<Moments> muRed(contoursRed.size());
 		for(int i=0; i< contoursRed.size(); i++) {
 			
 				muRed[i] = moments(contoursRed[i]);
@@ -300,6 +336,8 @@ int main() {
 
 		int x_max = max(X_coorBlue, max(X_coorRed, X_coorGreen));
 
+		char Command;
+
 		//cout<<"x_max = "<<x_max<<" x_poly "<<x_poly<<endl;
 
 		if(x_poly > x_max && x_poly < 9*(img.rows/10) ) {
@@ -335,16 +373,23 @@ int main() {
 				if(average >= 0 && average <=5) {
 					for(int i=0 ;i< 50; i++) {
 						cout<<"W"<<endl;
+						Command = '1';
+						// sendCommand(&Command);
+
 					}
 				}
 				else if(average >= 6 && average <= 10) {
 					for(int i=0 ;i< 50; i++) {
-						cout<<"D"<<endl;;
+						cout<<"D"<<endl;
+						Command = '3';
+						// sendCommand(&Command);
 					}
 				}
 				else if(average >= 11 && average <= 15) {
 					for(int i=0 ;i< 50; i++) {
 						cout<<"A";
+						Command = '2';
+						// sendCommand(&Command);
 					}
 				}
 
@@ -360,18 +405,26 @@ int main() {
 		if(follow_circle == 'B') {
 			if(contoursBlue.size() == 0) {
 				cout<<"Stop"<<endl;
+				Command = '0';
+				// sendCommand(&Command);
 			}
 			else if( Y_coorBlue > img.cols/2 + vert_centre_strip )  {
 				// turn right;
 				cout<<"D"<<endl;
+				Command = '3';
+				// sendCommand(&Command);
 			}
 			else if( Y_coorBlue < img.cols/2 - vert_centre_strip){
 				// turn left;
 				cout<<"A"<<endl;
+				Command = '1';
+				// sendCommand(&Command);
 			}
 			else {
 				// move forward;
 				cout<<"W"<<endl;
+				Command = '1';
+				// sendCommand(&Command);
 			}
 
 		}
@@ -382,36 +435,53 @@ int main() {
 			else if( Y_coorGreen > img.cols/2 + vert_centre_strip )  {
 				// turn right;
 				cout<<"D"<<endl;
+				Command = '3';
+				// sendCommand(&Command);
 			}
 			else if( Y_coorGreen < img.cols/2 - vert_centre_strip){
 				// turn left;
 				cout<<"A"<<endl;
+				Command = '1';
+				// sendCommand(&Command);
 			}
 			else {
 				// move forward;
 				cout<<"W"<<endl;
+				Command = '1';
+				// sendCommand(&Command);
 			}
 		}
 		else if(follow_circle == 'R') {
 			if(contoursRed.size() == 0) {
 				cout<<"Stop"<<endl;
+				Command = '0';
+				// sendCommand(&Command);
 			}
 			else if( Y_coorRed > img.cols/2 + vert_centre_strip )  {
 				// turn right;
 				cout<<"D"<<endl;
+				Command = '3';
+				// sendCommand(&Command);
 			}
 			else if( Y_coorRed < img.cols/2 - vert_centre_strip){
 				// turn left;
 				cout<<"A"<<endl;
+				Command = '2';
+				// sendCommand(&Command);
 			}
 			else {
 				// move forward;
 				cout<<"W"<<endl;
+				Command = '1';
+				// sendCommand(&Command);
 			}
 		}
 
 	}
+	auto stop = high_resolution_clock::now(); 
+	auto duration = duration_cast<microseconds>(stop - start); 
 
+	cout << "Duration => " << (float)duration.count() / 1000000	 << endl; 
 	waitKey(0);
 }
 //////////////////////////////////////////////////--------CHECK IF ITS A Barcode OR Quadilateral-------------///////////////////////////////////////////////////////
@@ -419,7 +489,7 @@ int main() {
 bool is_barcode(Mat img) {
 	cout<<"is_barcode called"<<endl;
 	Mat a = img.clone();
-	namedWindow("w1", WINDOW_NORMAL);
+	//namedWindow("w1", WINDOW_NORMAL);
 
 	Mat black_white = img.clone();
 	cvtColor(black_white, black_white, CV_BGR2GRAY);
@@ -448,9 +518,9 @@ bool is_barcode(Mat img) {
 
 	
 	//imshow("w1",a);
-	namedWindow("b", WINDOW_NORMAL);
-	imshow("b",black_white);
-	waitKey(1);
+	// namedWindow("b", WINDOW_NORMAL);
+	// imshow("b",black_white);
+	// waitKey(1);
 	
 
 	for(int i=0; i<1; i++) {
@@ -465,8 +535,8 @@ bool is_barcode(Mat img) {
 
 	
 	// namedWindow("img", WINDOW_NORMAL);
-	 namedWindow("final_output", WINDOW_NORMAL);
-	namedWindow("homography", WINDOW_NORMAL);
+	//  namedWindow("final_output", WINDOW_NORMAL);
+	// namedWindow("homography", WINDOW_NORMAL);
 
 	
 	
@@ -643,9 +713,9 @@ bool is_barcode(Mat img) {
 ////////////////////////////////////////////////////////////----BARCODE X and Y coordinate ------ //////////////////////////////////////////////////////////////////
 
 Point2f getCoorForBarcode(Mat img) {
-	cout<<"getCoorForBarcode is called"<<endl;
+	//cout<<"getCoorForBarcode is called"<<endl;
 	Mat a = img.clone();
-	namedWindow("w1", WINDOW_NORMAL);
+	// namedWindow("w1", WINDOW_NORMAL);
 
 	Mat black_white = img.clone();
 	cvtColor(black_white, black_white, CV_BGR2GRAY);
@@ -674,9 +744,9 @@ Point2f getCoorForBarcode(Mat img) {
 
 	
 	//imshow("w1",a);
-	namedWindow("b", WINDOW_NORMAL);
-	imshow("b",black_white);
-	waitKey(1);
+	// namedWindow("b", WINDOW_NORMAL);
+	// imshow("b",black_white);
+	// waitKey(1);
 	
 
 	for(int i=0; i<1; i++) {
@@ -691,8 +761,8 @@ Point2f getCoorForBarcode(Mat img) {
 
 	
 	// namedWindow("img", WINDOW_NORMAL);
-	 namedWindow("final_output", WINDOW_NORMAL);
-	namedWindow("homography", WINDOW_NORMAL);
+	//  namedWindow("final_output", WINDOW_NORMAL);
+	// namedWindow("homography", WINDOW_NORMAL);
 
 	
 	
@@ -747,7 +817,7 @@ Point2f getCoorForBarcode(Mat img) {
 int BarCode(Mat img) {
 
 	Mat a = img.clone();
-	namedWindow("w1", WINDOW_NORMAL);
+	// namedWindow("w1", WINDOW_NORMAL);
 
 	Mat black_white = img.clone();
 	cvtColor(black_white, black_white, CV_BGR2GRAY);
@@ -776,9 +846,9 @@ int BarCode(Mat img) {
 
 	
 	//imshow("w1",a);
-	namedWindow("b", WINDOW_NORMAL);
-	imshow("b",black_white);
-	waitKey(1);
+	// namedWindow("b", WINDOW_NORMAL);
+	// imshow("b",black_white);
+	// waitKey(1);
 	
 
 	for(int i=0; i<1; i++) {
@@ -793,8 +863,8 @@ int BarCode(Mat img) {
 
 	
 	// namedWindow("img", WINDOW_NORMAL);
-	 namedWindow("final_output", WINDOW_NORMAL);
-	namedWindow("homography", WINDOW_NORMAL);
+	//  namedWindow("final_output", WINDOW_NORMAL);
+	// namedWindow("homography", WINDOW_NORMAL);
 
 	
 	
@@ -969,7 +1039,7 @@ int BarCode(Mat img) {
     }
 
 
-    imshow("homography",im_out);
+    //imshow("homography",im_out);
 	//Drawing Contours
 	Mat f(a.rows, a.cols, CV_8UC3, Scalar(0,0,0));
 	drawContours(f, contours, -1, Scalar(232,112,114), 2, 8 );
@@ -1042,8 +1112,8 @@ int BarCode(Mat img) {
 	int bar_val = 8*l[0] + 4*l[1] + 2*l[2] + l[3];
 	//cout<<"Barcode value = "<<bar_val<<endl;
 	
-    imshow("final_output",con);
-    waitKey(9000);
+    // imshow("final_output",con);
+    // waitKey(9000);
     return bar_val;
 	//imshow("img", a);
 	
